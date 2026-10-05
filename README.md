@@ -259,3 +259,4 @@ Telegram-данными; итоговая сумма всегда пересчи
 
 MIT — свободно используйте как шаблон для своих коммерческих Telegram-ботов
 с Mini App.
+[Запись экрана_20261005_124725.webm](https://github.com/user-attachments/assets/ebe4ce4c-0381-4cab-971e-4080812e0252)
