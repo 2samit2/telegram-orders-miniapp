@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    container_name: artisan-coffee-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/data/artisan_coffee.sqlite3
+      - HOST=0.0.0.0
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite-data:/data
+
+volumes:
+  sqlite-data:

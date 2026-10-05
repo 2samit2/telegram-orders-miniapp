@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#7c5cff">
+    <title>Artisan Coffee &amp; Bakery — Витрина</title>
+
+    <!-- Telegram Mini App official script (must be loaded before app.js) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Extend Tailwind with the Telegram theme palette.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tg: "var(--tg-theme-bg-color)",
+                        tgText: "var(--tg-theme-text-color)",
+                        tgHint: "var(--tg-theme-hint-color)",
+                        tgLink: "var(--tg-theme-link-color)",
+                        tgButton: "var(--tg-theme-button-color)",
+                        tgButtonText: "var(--tg-theme-button-text-color)",
+                        tgSecondary: "var(--tg-theme-secondary-bg-color)"
+                    }
+                }
+            }
+        };
+    </script>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="tg-bg tg-text min-h-screen antialiased">
+    <!-- Header -->
+    <header class="sticky top-0 z-30 tg-bg/95 backdrop-blur border-b border-black/10 dark:border-white/10" style="background: var(--tg-bg, #ffffff);">
+        <div class="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner"
+                 style="background: var(--accent, #7c5cff);">☕</div>
+            <div class="leading-tight">
+                <h1 class="font-bold text-base">Artisan Coffee &amp; Bakery</h1>
+                <p class="text-xs" style="color: var(--tg-hint, #8b8b8b);">свежая обжарка · десерты · завтраки</p>
+            </div>
+            <button id="cart-preview-btn" class="ml-auto hidden tg-secondary rounded-full px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5" onclick="openCart()">
+                <span>🛒</span><span id="cart-preview-count">0</span>
+            </button>
+        </div>
+
+        <!-- Category tabs -->
+        <div class="max-w-lg mx-auto px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar" id="category-tabs">
+            <button class="tab-btn" data-category="all">Всё</button>
+            <button class="tab-btn" data-category="coffee">☕ Кофе</button>
+            <button class="tab-btn" data-category="desserts">🍰 Десерты</button>
+            <button class="tab-btn" data-category="breakfast">🍳 Завтраки</button>
+        </div>
+    </header>
+
+    <!-- Standalone mode banner (shown only outside Telegram) -->
+    <div id="standalone-banner" class="hidden max-w-lg mx-auto mt-3 px-4">
+        <div class="rounded-xl px-4 py-3 text-xs leading-relaxed tg-secondary">
+            🖥 <b>Демо-режим в браузере.</b> Вы открыли витрину вне Telegram —
+            интерфейс работает с моковыми данными пользователя. Внутри Telegram
+            заказ отправляется от вашего реального аккаунта.
+        </div>
+    </div>
+
+    <!-- Product catalogue -->
+    <main class="max-w-lg mx-auto px-4 py-4 pb-40">
+        <div id="products-list" class="flex flex-col gap-3">
+            <!-- Product cards are rendered by app.js -->
+        </div>
+
+        <!-- Loading skeleton -->
+        <div id="loading" class="flex flex-col gap-3">
+            <div class="skeleton h-28 rounded-2xl"></div>
+            <div class="skeleton h-28 rounded-2xl"></div>
+            <div class="skeleton h-28 rounded-2xl"></div>
+        </div>
+
+        <!-- Error state -->
+        <div id="error-state" class="hidden text-center py-10">
+            <p class="text-4xl mb-3">😵</p>
+            <p class="font-semibold mb-1">Не удалось загрузить каталог</p>
+            <p class="text-sm mb-4" style="color: var(--tg-hint, #8b8b8b);">
+                Проверьте соединение и попробуйте снова.
+            </p>
+            <button class="btn-primary px-5 py-2 rounded-xl text-sm font-semibold" onclick="loadProducts()">
+                Повторить
+            </button>
+        </div>
+    </main>
+
+    <!-- Floating cart -->
+    <button id="cart-fab" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 hidden"
+            onclick="openCart()">
+        <span class="flex items-center gap-2 rounded-full px-6 py-3 shadow-lg font-semibold text-sm"
+              style="background: var(--tg-button, #2481cc); color: var(--tg-button-text, #ffffff);">
+            🛒 Корзина · <span id="fab-total">0 ₽</span>
+        </span>
+    </button>
+
+    <!-- Modal: cart & checkout -->
+    <div id="modal-overlay" class="modal-overlay hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+         onclick="if (event.target === this) closeCart()">
+        <div class="modal-sheet w-full max-w-lg rounded-t-3xl sm:rounded-3xl tg-secondary shadow-2xl
+                    max-h-[88vh] flex flex-col" style="background: var(--tg-bg, #ffffff);">
+            <!-- Modal header -->
+            <div class="px-5 pt-4 pb-3 flex items-center justify-between border-b border-black/10 dark:border-white/10">
+                <h2 class="font-bold text-lg" id="modal-title">🛒 Корзина</h2>
+                <button class="w-9 h-9 rounded-full tg-secondary flex items-center justify-center text-lg"
+                        onclick="closeCart()" aria-label="Закрыть">✕</button>
+            </div>
+
+            <!-- Step 1: cart contents -->
+            <div id="step-cart" class="px-5 py-4 overflow-y-auto flex flex-col gap-3">
+                <div id="cart-items" class="flex flex-col gap-3"></div>
+                <p id="cart-empty" class="hidden text-center py-8 text-sm" style="color: var(--tg-hint, #8b8b8b);">
+                    Корзина пуста. Добавьте что-нибудь вкусное ☕
+                </p>
+            </div>
+
+            <!-- Step 2: checkout form -->
+            <div id="step-checkout" class="hidden px-5 py-4 overflow-y-auto flex flex-col gap-4">
+                <label class="text-sm font-semibold block">
+                    Адрес доставки или номер столика *
+                    <input id="input-address" type="text" maxlength="200"
+                           class="field mt-1.5 w-full rounded-xl px-4 py-3 text-sm"
+                           placeholder="ул. Кофейная, 12 / столик №7">
+                </label>
+                <label class="text-sm font-semibold block">
+                    Телефон (необязательно)
+                    <input id="input-phone" type="tel" maxlength="30"
+                           class="field mt-1.5 w-full rounded-xl px-4 py-3 text-sm"
+                           placeholder="+7 999 123-45-67">
+                </label>
+                <label class="text-sm font-semibold block">
+                    Имя (для гостей в браузере)
+                    <input id="input-name" type="text" maxlength="100"
+                           class="field mt-1.5 w-full rounded-xl px-4 py-3 text-sm"
+                           placeholder="Как к вам обращаться?">
+                </label>
+                <label class="text-sm font-semibold block">
+                    Комментарий к заказу
+                    <textarea id="input-comment" rows="3" maxlength="500"
+                              class="field mt-1.5 w-full rounded-xl px-4 py-3 text-sm resize-none"
+                              placeholder="Например: без сахара, сдвинуть вилкой..."></textarea>
+                </label>
+                <div id="checkout-summary" class="text-sm tg-secondary rounded-xl p-4"></div>
+                <p id="checkout-error" class="hidden text-sm" style="color: #e53935;"></p>
+            </div>
+
+            <!-- Step 3: success -->
+            <div id="step-success" class="hidden px-5 py-8 flex flex-col items-center text-center gap-2">
+                <p class="text-5xl">🎉</p>
+                <h3 class="font-bold text-lg">Заказ оформлен!</h3>
+                <p class="text-sm leading-relaxed" style="color: var(--tg-hint, #8b8b8b);">
+                    Номер вашего заказа: <b id="success-order-id">—</b><br>
+                    Мы уже передали его баристе. Ожидайте подтверждения!
+                </p>
+                <div id="success-details" class="mt-2 text-sm w-full tg-secondary rounded-xl p-4 text-left"></div>
+            </div>
+
+            <!-- Modal footer / action button -->
+            <div class="px-5 py-4 border-t border-black/10 dark:border-white/10" style="background: var(--tg-bg, #ffffff);">
+                <button id="modal-action-btn" class="btn-primary w-full py-3.5 rounded-2xl font-bold"
+                        onclick="onModalAction()">
+                    Оформить заказ
+                </button>
+                <p id="modal-action-hint" class="hidden text-center text-xs mt-2" style="color: var(--tg-hint, #8b8b8b);">
+                    Кнопка заказа также продублирована в MainButton Telegram.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast" class="toast hidden fixed bottom-40 left-1/2 -translate-x-1/2 z-50"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

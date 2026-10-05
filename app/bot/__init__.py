@@ -1,0 +1,1 @@
+"""Bot package (aiogram 3.x)."""
